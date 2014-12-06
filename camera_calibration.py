@@ -37,4 +37,47 @@ for fname in images:
         cv2.imshow('img',img)
         cv2.waitKey(500)
 
+        #cv2 calibration: creturns camera matrix, distortion coefficients, rotation and translation vectors
+        ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1],None,None)
+
+        #Undistortion (example on left12 image)
+        #0.  (preprocessing) Use getOptimalNewCameraMatrix
+        #If alpha=1, all pixels are retained with some extra black images.
+        #It also returns an image ROI which can be used to crop the result.
+        img = cv2.imread('left12.jpg')
+        h,  w = img.shape[:2]
+        newcameramtx, roi=cv2.getOptimalNewCameraMatrix(mtx,dist,(w,h),1,(w,h))
+
+        #Method 1.  cv2.undistort()
+        # undistort
+        dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
+
+        # crop the image (uses roi)
+        x,y,w,h = roi
+        dst = dst[y:y+h, x:x+w]
+        cv2.imwrite('calibresult.png',dst)
+
+        #Method 2.  remapping
+        # undistort
+        #mapx,mapy = cv2.initUndistortRectifyMap(mtx,dist,None,newcameramtx,(w,h),5)
+        #dst = cv2.remap(img,mapx,mapy,cv2.INTER_LINEAR)
+
+        # crop the image
+        #x,y,w,h = roi
+        #dst = dst[y:y+h, x:x+w]
+        #cv2.imwrite('calibresult.png',dst)
+
+        #Melanie:  looks like they both get the same result- method 1 looks easier to code
+        #Re-projection error:
+        mean_error = 0
+        for i in xrange(len(objpoints)):
+            imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], mtx, dist)
+            error = cv2.norm(imgpoints[i],imgpoints2, cv2.NORM_L2)/len(imgpoints2)
+            #Melanie:  s/tot_error/mean_error --> should be close to 0
+            mean_error += error
+
+        print "total error: ", mean_error/len(objpoints)
+
+
+
 cv2.destroyAllWindows()
