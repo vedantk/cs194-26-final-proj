@@ -40,7 +40,7 @@ for fname in images:
         #Melanie note: this is what we need (mtx, dist)
         ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1],None,None)
 
-        #Melanie note:  aplplication of using camera matrix and distortion coefficents 
+        #Melanie note:  application of using camera matrix and distortion coefficents: undistortion, re-projection error
         #Undistortion (example on left12 image)
         #0.  (preprocessing) Use getOptimalNewCameraMatrix
         #If alpha=1, all pixels are retained with some extra black images.
