@@ -37,8 +37,10 @@ for fname in images:
         cv2.waitKey(500)
 
         #cv2 calibration: creturns camera matrix, distortion coefficients, rotation and translation vectors
+        #Melanie note: this is what we need (mtx, dist)
         ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1],None,None)
 
+        #Melanie note:  aplplication of using camera matrix and distortion coefficents 
         #Undistortion (example on left12 image)
         #0.  (preprocessing) Use getOptimalNewCameraMatrix
         #If alpha=1, all pixels are retained with some extra black images.
