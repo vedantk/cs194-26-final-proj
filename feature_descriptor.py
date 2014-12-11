@@ -25,8 +25,8 @@ def find_features(img, method='SIFT', nfeatures=1000):
         features = [FeatureDescriptor(K.pt, (K, D)) for (K, D) in zip(kp, des)]
         return features
     elif method == 'MOPS':
-        keyPts = ANMS(im, nfeatures) 
-        patches, coords = preparePatches(im, ketPts)
+        keyPts = ANMS(img, nfeatures) 
+        patches, coords = preparePatches(img, ketPts)
         return FeatureDescriptor(coords, patches)
 
 def find_matches(features1, features2, method='SIFT', nmatches=1000):
