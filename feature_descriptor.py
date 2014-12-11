@@ -1,5 +1,7 @@
 #!/usr/bin/python2
 
+import numpy as np
+
 import argparse
 import cv2
 from collections import namedtuple
@@ -22,7 +24,7 @@ def find_features(img, method='SIFT', nfeatures=1000):
     if method == 'SIFT':
         sift = cv2.SIFT(nfeatures)
         kp, des = sift.detectAndCompute(img, None)
-        features = [FeatureDescriptor(K.pt, (K, D)) for (K, D) in zip(kp, des)]
+        features = [FeatureDescriptor(K.pt, D) for K, D in zip(kp, des)]
         return features
     elif method == 'MOPS':
         keyPts = ANMS(img, nfeatures) 
@@ -40,7 +42,19 @@ def find_matches(features1, features2, method='SIFT', nmatches=1000):
     '''
     
     if method == 'SIFT':
-        pass
+        correspondences = []
+        des1 = np.array([F.desc for F in features1])
+        des2 = np.array([F.desc for F in features2])
+        flann = cv2.FlannBasedMatcher({'algorithm': 0, 'trees': 5},
+                                      {'checks': 50})
+        matches = flann.knnMatch(des1, des2, k=2)
+        for m, n in matches:
+            if m.distance < 0.8*n.distance:
+                print m.trainIdx, n.trainIdx, len(features1), len(features2)
+                pt1 = features1[m.queryIdx].pos
+                pt2 = features2[m.trainIdx].pos
+                correspondences.append((pt1, pt2))
+        return correspondences 
     elif method == 'MOPS':
         pass
 
@@ -120,7 +134,11 @@ def ANMS(im, n, crobust=0.9):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('img')
+    parser.add_argument('img1')
+    parser.add_argument('img2')
     args = parser.parse_args()
 
-    print find_features(cv2.imread(args.img))
+    features1 = find_features(cv2.imread(args.img1))
+    features2 = find_features(cv2.imread(args.img2))
+    correspondences = find_matches(features1, features2)
+    print correspondences
