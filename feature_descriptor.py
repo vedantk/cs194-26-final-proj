@@ -4,7 +4,9 @@ import numpy as np
 
 import argparse
 import cv2
+import numpy as np
 from collections import namedtuple
+from scipy.spatial import KDTree as kdt
 
 # FeatureDescriptor:
 # + pos: a pixel position in (row, column) coordinates
@@ -28,8 +30,8 @@ def find_features(img, method='SIFT', nfeatures=1000):
         return features
     elif method == 'MOPS':
         keyPts = ANMS(img, nfeatures) 
-        patches, coords = preparePatches(img, ketPts)
-        return FeatureDescriptor(coords, patches)
+        patches, coords = preparePatches(img, keyPts)
+        return [FeatureDescriptor(c, p) for (c, p) in zip(coords, patches)]
 
 def find_matches(features1, features2, method='SIFT', nmatches=1000):
     '''
@@ -56,7 +58,11 @@ def find_matches(features1, features2, method='SIFT', nmatches=1000):
                 correspondences.append((pt1, pt2))
         return correspondences 
     elif method == 'MOPS':
-        pass
+      patches1, coords1 = features1.desc, features1.pos
+      patches2, coords2 = features2.desc, features2.pos
+      
+      return zip(matchPoints(patches1, patches2, coords1, coords2))
+        
 
 ######################
 ## <HELPER METHODS> ##
@@ -128,6 +134,21 @@ def ANMS(im, n, crobust=0.9):
         break
   return maxCoords(radii, n)
 
+def matchPoints(patch1, patch2, coord1, coord2, thresh=0.4):
+  """ Matches a pair of keypoints from two images,
+  based on feature descriptors (image patches)
+  """
+  tree = kdt(patch2)
+  dists, idx = tree.query(patch1, k=2)
+
+  ratios = dists[:,0]/dists[:,1]
+  patch2Idx = idx[ratios < thresh][:,0]
+  patch1Idx = np.arange(len(patch1))[ratios < thresh]
+
+  matched1 = coord1[patch1Idx]
+  matched2 = coord2[patch2Idx]
+  return matched1, matched2
+
 #######################
 ## </HELPER METHODS> ##
 #######################
@@ -137,8 +158,19 @@ if __name__ == '__main__':
     parser.add_argument('img1')
     parser.add_argument('img2')
     args = parser.parse_args()
+  
+    ## Test for SIFT
+    #sift_feat1 = find_features(cv2.imread(args.img1))
+    #sift_feat2 = find_features(cv2.imread(args.img2))
+    #sift_matches = find_matches(sift_feat1, sift_feat2)
 
     features1 = find_features(cv2.imread(args.img1))
     features2 = find_features(cv2.imread(args.img2))
     correspondences = find_matches(features1, features2)
     print correspondences
+
+    ## Test for MOPS
+    mops_feat1 = find_features(cv2.imread(args.img1), method="MOPS")
+    mops_feat2 = find_features(cv2.imread(args.img2), method="MOPS")
+    mops_matches = find_matches(mops_feat1, mops_feat2, method="MOPS")
+    print mops_matches
