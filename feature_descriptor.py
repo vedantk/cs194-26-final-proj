@@ -2,6 +2,9 @@
 
 from collections import namedtuple
 
+# FeatureDescriptor:
+# + pos: a pixel position in (row, column) coordinates
+# + desc: a feature vector
 FeatureDescriptor = namedtuple('FeatureDescriptor', 'pos desc')
 
 def find_features(img, method='SIFT', nfeatures=1000):
@@ -19,6 +22,7 @@ def find_features(img, method='SIFT', nfeatures=1000):
     if method == 'SIFT':
         sift = cv2.SIFT(nfeatures)
         kp, des = sift.detectAndCompute(img, None)
+
     elif method == 'MOPS':
         pass
 
