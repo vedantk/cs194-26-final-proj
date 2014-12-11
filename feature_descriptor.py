@@ -2,6 +2,7 @@
 
 import argparse
 import cv2
+import numpy as np
 from collections import namedtuple
 from scipy.spatial import KDTree as kdt
 
@@ -27,8 +28,8 @@ def find_features(img, method='SIFT', nfeatures=1000):
         return features
     elif method == 'MOPS':
         keyPts = ANMS(img, nfeatures) 
-        patches, coords = preparePatches(img, ketPts)
-        return FeatureDescriptor(coords, patches)
+        patches, coords = preparePatches(img, keyPts)
+        return [FeatureDescriptor(c, p) for (c, p) in zip(coords, patches)]
 
 def find_matches(features1, features2, method='SIFT', nmatches=1000):
     '''
@@ -140,7 +141,17 @@ def matchPoints(patch1, patch2, coord1, coord2, thresh=0.4):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('img')
+    parser.add_argument('img1')
+    parser.add_argument('img2')
     args = parser.parse_args()
+  
+    ## Test for SIFT
+    #sift_feat1 = find_features(cv2.imread(args.img1))
+    #sift_feat2 = find_features(cv2.imread(args.img2))
+    #sift_matches = find_matches(sift_feat1, sift_feat2)
 
-    print find_features(cv2.imread(args.img))
+    ## Test for MOPS
+    mops_feat1 = find_features(cv2.imread(args.img1), method="MOPS")
+    mops_feat2 = find_features(cv2.imread(args.img2), method="MOPS")
+    mops_matches = find_matches(mops_feat1, mops_feat2, method="MOPS")
+    print mops_matches
