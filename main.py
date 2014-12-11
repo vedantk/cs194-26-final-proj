@@ -1,7 +1,8 @@
 import argparse
 import json
-from pprint import pprint
 import feature_descriptor
+import cv2
+from pprint import pprint
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CS 194-26 Final Project by Vedant Kumar, Melanie Cebula, and Siddhartho Bhattacharya")
@@ -16,9 +17,9 @@ if __name__ == "__main__":
         #print(data)
 
         images = [cv2.imread(image) for image, _ in data]
-        features = [feature_descriptor.find_features(image) for image in image]
-        for feature in features:
-            #pos is (row, col) in image
-            #desc is description
-            pos, desc = feature.pos, feature.desc
+        #Using SIFT by default
+        print images
+        features = [feature_descriptor.find_features(image) for image in images]
+        for i in range(1, len(features) - 1):
+            feature_descriptor.find_matches(features[i], features[i + 1])
 
