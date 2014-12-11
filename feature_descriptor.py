@@ -1,5 +1,6 @@
 #!/usr/bin/python2
 
+import argparse
 import cv2
 from collections import namedtuple
 
@@ -13,6 +14,7 @@ def find_features(img, method='SIFT', nfeatures=1000):
     Input:
         img: a cv2 image (color images are supported)
         method: may be 'SIFT' or 'MOPS'
+        nfeatures: maximum number of features to find
     Output:
         features: a list of FeatureDescriptor objects
     '''
@@ -23,7 +25,8 @@ def find_features(img, method='SIFT', nfeatures=1000):
     if method == 'SIFT':
         sift = cv2.SIFT(nfeatures)
         kp, des = sift.detectAndCompute(img, None)
-
+        features = [FeatureDescriptor(K.pt, (K, D)) for (K, D) in zip(kp, des)]
+        return features
     elif method == 'MOPS':
         keyPts = ANMS(im, nfeatures) 
         patches, coords = preparePatches(im, ketPts)
@@ -113,3 +116,10 @@ def ANMS(im, n, crobust=0.9):
 #######################
 ## </HELPER METHODS> ##
 #######################
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('img')
+    args = parser.parse_args()
+
+    print find_features(cv2.imread(args.img))
