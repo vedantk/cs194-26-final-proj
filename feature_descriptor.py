@@ -3,6 +3,7 @@
 import argparse
 import cv2
 from collections import namedtuple
+from scipy.spatial import KDTree as kdt
 
 # FeatureDescriptor:
 # + pos: a pixel position in (row, column) coordinates
@@ -42,7 +43,11 @@ def find_matches(features1, features2, method='SIFT', nmatches=1000):
     if method == 'SIFT':
         pass
     elif method == 'MOPS':
-        pass
+      patches1, coords1 = features1.desc, features1.pos
+      patches2, coords2 = features2.desc, features2.pos
+      
+      return zip(matchPoints(patches1, patches2, coords1, coords2))
+        
 
 ######################
 ## <HELPER METHODS> ##
@@ -113,6 +118,21 @@ def ANMS(im, n, crobust=0.9):
         radii[row,col] = radius
         break
   return maxCoords(radii, n)
+
+def matchPoints(patch1, patch2, coord1, coord2, thresh=0.4):
+  """ Matches a pair of keypoints from two images,
+  based on feature descriptors (image patches)
+  """
+  tree = kdt(patch2)
+  dists, idx = tree.query(patch1, k=2)
+
+  ratios = dists[:,0]/dists[:,1]
+  patch2Idx = idx[ratios < thresh][:,0]
+  patch1Idx = np.arange(len(patch1))[ratios < thresh]
+
+  matched1 = coord1[patch1Idx]
+  matched2 = coord2[patch2Idx]
+  return matched1, matched2
 
 #######################
 ## </HELPER METHODS> ##
