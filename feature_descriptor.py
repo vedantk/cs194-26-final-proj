@@ -9,8 +9,8 @@ from collections import namedtuple
 from scipy.spatial import KDTree as kdt
 
 # FeatureDescriptor:
-# + pos: a pixel position in (row, column) coordinates
-# + desc: a feature vector
+# + pos: a numpyarray of pixel positions, each position is in (row, column) coordinates
+# + desc: a numpyarray of feature vectors corresponding to an image patch around each position
 FeatureDescriptor = namedtuple('FeatureDescriptor', 'pos desc')
 
 def find_features(img, method='SIFT', nfeatures=1000):
@@ -20,23 +20,23 @@ def find_features(img, method='SIFT', nfeatures=1000):
         method: may be 'SIFT' or 'MOPS'
         nfeatures: maximum number of features to find
     Output:
-        features: a list of FeatureDescriptor objects
+        features: a FeatureDescriptor object
     '''
 
     if method == 'SIFT':
         sift = cv2.SIFT(nfeatures)
         kp, des = sift.detectAndCompute(img, None)
         features = [FeatureDescriptor(K.pt, D) for K, D in zip(kp, des)]
-        return features
+        return features                                                 
     elif method == 'MOPS':
         keyPts = ANMS(img, nfeatures) 
         patches, coords = preparePatches(img, keyPts)
-        return [FeatureDescriptor(c, p) for (c, p) in zip(coords, patches)]
+        return FeatureDescriptor(coords, patches)
 
 def find_matches(features1, features2, method='SIFT', nmatches=1000):
     '''
     Input:
-        features1, features2: list of FeatureDescriptor
+        features1, features2: FeatureDescriptor for each image
         method: may be 'SIFT' or 'MOPS'
         nmatches: maximum number of correspondence points to find
     Output:
@@ -45,8 +45,8 @@ def find_matches(features1, features2, method='SIFT', nmatches=1000):
     
     if method == 'SIFT':
         correspondences = []
-        des1 = np.array([F.desc for F in features1])
-        des2 = np.array([F.desc for F in features2])
+        des1 = np.array([F.desc for F in features1])  #If changing interface to new spec, I think you can just use features1.desc here
+        des2 = np.array([F.desc for F in features2])  
         flann = cv2.FlannBasedMatcher({'algorithm': 0, 'trees': 5},
                                       {'checks': 50})
         matches = flann.knnMatch(des1, des2, k=2)
@@ -61,7 +61,8 @@ def find_matches(features1, features2, method='SIFT', nmatches=1000):
       patches1, coords1 = features1.desc, features1.pos
       patches2, coords2 = features2.desc, features2.pos
       
-      return zip(matchPoints(patches1, patches2, coords1, coords2))
+      matched1, matched2 = matchPoints(patches1, patches2, coords1, coords2)
+      return zip(matched1, matched2)
         
 
 ######################
@@ -160,14 +161,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
   
     ## Test for SIFT
-    #sift_feat1 = find_features(cv2.imread(args.img1))
-    #sift_feat2 = find_features(cv2.imread(args.img2))
-    #sift_matches = find_matches(sift_feat1, sift_feat2)
-
-    features1 = find_features(cv2.imread(args.img1))
-    features2 = find_features(cv2.imread(args.img2))
-    correspondences = find_matches(features1, features2)
-    print correspondences
+    #features1 = find_features(cv2.imread(args.img1))
+    #features2 = find_features(cv2.imread(args.img2))
+    #correspondences = find_matches(features1, features2)
+    #print correspondences
 
     ## Test for MOPS
     mops_feat1 = find_features(cv2.imread(args.img1), method="MOPS")
