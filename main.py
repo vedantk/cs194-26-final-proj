@@ -2,7 +2,6 @@ import argparse
 import json
 import feature_descriptor
 import cv2
-import math
 from pprint import pprint
 
 if __name__ == "__main__":
@@ -24,8 +23,6 @@ if __name__ == "__main__":
 
         #Find all corr. points between adjacent pairs of images
         corr_pts = []
-        theta = math.pi/2
-        phi = math.pi/2
-        for i in range(1, len(features) - 1):
+        for i in range(len(features) - 1):
             corr_pts.append(feature_descriptor.find_matches(features[i], features[i + 1]))
-
+        print corr_pts
