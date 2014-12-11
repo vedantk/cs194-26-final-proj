@@ -9,8 +9,8 @@ from collections import namedtuple
 from scipy.spatial import KDTree as kdt
 
 # FeatureDescriptor:
-# + pos: a numpyarray of pixel positions, each position is in (row, column) coordinates
-# + desc: a numpyarray of feature vectors corresponding to an image patch around each position
+# + pos: np.array of pixel positions in (row, column) coordinates
+# + desc: np.array of feature vectors collected at positions given in @pos
 FeatureDescriptor = namedtuple('FeatureDescriptor', 'pos desc')
 
 def find_features(img, method='SIFT', nfeatures=1000):
@@ -26,8 +26,7 @@ def find_features(img, method='SIFT', nfeatures=1000):
     if method == 'SIFT':
         sift = cv2.SIFT(nfeatures)
         kp, des = sift.detectAndCompute(img, None)
-        features = [FeatureDescriptor(K.pt, D) for K, D in zip(kp, des)]
-        return features                                                 
+        return FeatureDescriptor([K.pt for K in kp], des)
     elif method == 'MOPS':
         keyPts = ANMS(img, nfeatures) 
         patches, coords = preparePatches(img, keyPts)
@@ -45,16 +44,15 @@ def find_matches(features1, features2, method='SIFT', nmatches=1000):
     
     if method == 'SIFT':
         correspondences = []
-        des1 = np.array([F.desc for F in features1])  #If changing interface to new spec, I think you can just use features1.desc here
-        des2 = np.array([F.desc for F in features2])  
+        des1 = features1.desc
+        des2 = features2.desc
         flann = cv2.FlannBasedMatcher({'algorithm': 0, 'trees': 5},
                                       {'checks': 50})
         matches = flann.knnMatch(des1, des2, k=2)
         for m, n in matches:
             if m.distance < 0.8*n.distance:
-                print m.trainIdx, n.trainIdx, len(features1), len(features2)
-                pt1 = features1[m.queryIdx].pos
-                pt2 = features2[m.trainIdx].pos
+                pt1 = features1.pos[m.queryIdx]
+                pt2 = features2.pos[m.trainIdx]
                 correspondences.append((pt1, pt2))
         return correspondences 
     elif method == 'MOPS':
@@ -64,7 +62,6 @@ def find_matches(features1, features2, method='SIFT', nmatches=1000):
       matched1, matched2 = matchPoints(patches1, patches2, coords1, coords2)
       return zip(matched1, matched2)
         
-
 ######################
 ## <HELPER METHODS> ##
 ######################
@@ -161,10 +158,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
   
     ## Test for SIFT
-    #features1 = find_features(cv2.imread(args.img1))
-    #features2 = find_features(cv2.imread(args.img2))
-    #correspondences = find_matches(features1, features2)
-    #print correspondences
+    features1 = find_features(cv2.imread(args.img1))
+    features2 = find_features(cv2.imread(args.img2))
+    correspondences = find_matches(features1, features2)
+    print correspondences
 
     ## Test for MOPS
     mops_feat1 = find_features(cv2.imread(args.img1), method="MOPS")
