@@ -19,9 +19,6 @@ def find_features(img, method='SIFT', nfeatures=1000):
         features: a list of FeatureDescriptor objects
     '''
 
-    # Convert the image to grayscale if necessary.
-    im = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if len(img.shape) > 2 else img
-
     if method == 'SIFT':
         sift = cv2.SIFT(nfeatures)
         kp, des = sift.detectAndCompute(img, None)
@@ -41,7 +38,11 @@ def find_matches(features1, features2, method='SIFT', nmatches=1000):
     Output:
         correspondences: a list of [(pt1, pt2), ...]
     '''
-    pass
+    
+    if method == 'SIFT':
+        pass
+    elif method == 'MOPS':
+        pass
 
 ######################
 ## <HELPER METHODS> ##
