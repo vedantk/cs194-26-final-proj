@@ -68,6 +68,18 @@ def find_matches(features1, features2, method='SIFT', nmatches=200):
         npts = min(nmatches, min(len(matched1), len(matched2)))
         return matched1[:npts], matched2[:npts]
 
+def normalize_points(img, points):
+    '''
+    Input:
+        img: cv2 image
+        points: array of (row, col) points from img
+    Output:
+        pointsn: normalized point array
+    '''
+
+    h, w = map(float, img.shape[:2])
+    return np.array([np.array([r/h, c/w]) for (r, c) in points])
+
 def find_fundamental_matrix(points1, points2):
     '''
     Input:
@@ -85,7 +97,7 @@ def find_fundamental_matrix(points1, points2):
             a, b = pt1
             c, d = pt2
             e = np.matrix([c, d, 1]) * (F * np.matrix([[a], [b], [1]]))
-            error += abs(e[0, 0])
+            error += e[0, 0]**2
 
     print "Fundamental matrix:\n", F
     print "-> Approximation error =", error
@@ -194,12 +206,22 @@ if __name__ == '__main__':
     features1 = find_features(img1)
     features2 = find_features(img2)
     points1, points2 = find_matches(features1, features2)
+
+    # XXX: Need to test whether normalization actually helps.
+    points1, points2 = map(normalize_points, (img1, img2), (points1, points2))
+
     F = find_fundamental_matrix(points1, points2)
     o, op = reconstruct.find_epipoles(F)
     P1, P2 = reconstruct.approx_perspective_projections(F)
+    points3d = []
+    depth_err = 0.0
     for u1, u2 in zip(points1, points2):
         X, err = reconstruct.reconstruct(P1, P2, u1, u2)
         print "Mapping", (u1, u2), "to 3-d point:\n", X, "(error = %f)" % (err,)
+        depth_err += err
+        points3d.append(X)
+    print "Total depth reconstruction error:", depth_err
+    reconstruct.render(points3d)
 
     ## Test for MOPS
     #mops_feat1 = find_features(img1, method="MOPS")

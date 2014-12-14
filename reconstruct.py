@@ -1,8 +1,12 @@
 #!/usr/bin/python2
 
+import operator
+
 import cv2
 import numpy as np
 import numpy.linalg as LA
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 
 def find_epipoles(F):
     '''
@@ -105,3 +109,20 @@ def reconstruct(P1, P2, u1, u2):
     x, residuals, rank, s = LA.lstsq(L, b)
 
     return x[:3], np.sum(residuals)
+
+def render(points):
+    '''
+    Input:
+        points: array of (x, y, z) locations
+    '''
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    xs = map(operator.itemgetter(0), points)
+    ys = map(operator.itemgetter(1), points)
+    zs = map(operator.itemgetter(2), points)
+    ax.scatter(xs, ys, zs, c='r', marker='o')
+    ax.set_xlabel('X Axis')
+    ax.set_ylabel('Y Axis')
+    ax.set_zlabel('Z Axis')
+    plt.show()
