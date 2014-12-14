@@ -8,6 +8,8 @@ import numpy as np
 from scipy.spatial import KDTree as kdt
 from matplotlib import pyplot as plt
 
+import reconstruct
+
 # FeatureDescriptor:
 # + pos: np.array of pixel positions in (row, column) coordinates
 # + desc: np.array of feature vectors collected at positions given in @pos
@@ -78,39 +80,17 @@ def find_fundamental_matrix(points1, points2):
     F, mask = cv2.findFundamentalMat(np.array(points1), np.array(points2))
 
     error = 0.0
-    for pt1, pt2 in zip(points1, points2):
-        a, b = pt1
-        c, d = pt2
-        e = np.matrix([c, d, 1]) * (F * np.matrix([[a], [b], [1]]))
-        error += abs(e[0, 0])
+    for i, (pt1, pt2) in enumerate(zip(points1, points2)):
+        if mask[i]:
+            a, b = pt1
+            c, d = pt2
+            e = np.matrix([c, d, 1]) * (F * np.matrix([[a], [b], [1]]))
+            error += abs(e[0, 0])
 
     print "Fundamental matrix:\n", F
     print "-> Approximation error =", error
     print "-> # of correspondence points =", len(points1)
-    return F
-
-def find_epipoles(F):
-    '''
-    Input:
-        F: Fundamental matrix
-    Output:
-        o: 3x1 np.matrix, epipole in image1
-        op: 3x1 np.matrix, epipole in image2
-        (See http://www.robots.ox.ac.uk/~vgg/hzbook/hzbook2/HZepipolar.pdf)
-    '''
-
-    U, S, V = np.linalg.svd(F)
-    o = np.matrix(V[-1]).getT()     # Approx. right-null vector.
-    op = np.matrix(U[:, -1]).getT() # Approx. left-null vector.
-
-    error = 0.0
-    error += np.linalg.norm(F * o)
-    error += np.linalg.norm(op.getT() * F)
-
-    print "Epipole 1:\n", o
-    print "Epipole 2:\n", op
-    print "-> Approximation error =", error
-    return o, op
+    return np.matrix(F)
  
 ######################
 ## <HELPER METHODS> ##
@@ -215,7 +195,8 @@ if __name__ == '__main__':
     features2 = find_features(img2)
     points1, points2 = find_matches(features1, features2)
     F = find_fundamental_matrix(points1, points2)
-    o, op = find_epipoles(F)
+    o, op = reconstruct.find_epipoles(F)
+    P1, P2 = reconstruct.approx_perspective_projections(F)
 
     ## Test for MOPS
     #mops_feat1 = find_features(img1, method="MOPS")
