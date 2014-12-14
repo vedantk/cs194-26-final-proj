@@ -69,4 +69,39 @@ def reconstruct(P1, P2, u1, u2):
         error: reconstruction error estimate
     '''
 
-    pass
+    u, v = u1
+    up, vp = u2
+
+    # L: 6x5, x = (x_i, y_i, z_i, w_i, w'_i)^T, b: 6x1.
+    L = np.matrix([
+        # (P1[0, :] \dot (x_i, y_i, z_i, 1)) - u_iw_i = 0
+        [P1[0, 0], P1[0, 1], P1[0, 2], -u, 0], 
+
+        # (P1[1, :] \dot (x_i, y_i, z_i, 1)) - v_iw_i = 0
+        [P1[1, 0], P1[1, 1], P1[1, 2], -v, 0], 
+
+        # (P1[2, :] \dot (x_i, y_i, z_i, 1)) - w_i = 0
+        [P1[2, 0], P1[2, 1], P1[2, 2], -1, 0], 
+
+        # (P2[0, :] \dot (x_i, y_i, z_i, 1)) - u'_iw'_i = 0
+        [P2[0, 0], P2[0, 1], P2[0, 2], 0, -up], 
+
+        # (P2[1, :] \dot (x_i, y_i, z_i, 1)) - v'_iw'_i = 0
+        [P2[1, 0], P2[1, 1], P2[1, 2], 0, -vp], 
+
+        # (P2[2, :] \dot (x_i, y_i, z_i, 1)) - w'_i = 0
+        [P2[2, 0], P2[2, 1], P2[2, 2], 0, -1], 
+    ])
+
+    b = np.matrix([
+        [-P1[0, 3]],
+        [-P1[1, 3]],
+        [-P1[2, 3]],
+        [-P2[0, 3]],
+        [-P2[1, 3]],
+        [-P2[2, 3]],
+    ])
+
+    x, residuals, rank, s = LA.lstsq(L, b)
+
+    return x[:3], np.sum(residuals)

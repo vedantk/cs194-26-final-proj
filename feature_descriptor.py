@@ -197,6 +197,9 @@ if __name__ == '__main__':
     F = find_fundamental_matrix(points1, points2)
     o, op = reconstruct.find_epipoles(F)
     P1, P2 = reconstruct.approx_perspective_projections(F)
+    for u1, u2 in zip(points1, points2):
+        X, err = reconstruct.reconstruct(P1, P2, u1, u2)
+        print "Mapping", (u1, u2), "to 3-d point:\n", X, "(error = %f)" % (err,)
 
     ## Test for MOPS
     #mops_feat1 = find_features(img1, method="MOPS")
