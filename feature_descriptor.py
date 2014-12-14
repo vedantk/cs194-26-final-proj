@@ -74,6 +74,7 @@ def find_fundamental_matrix(points1, points2):
     Output:
         F: np.matrix, the fundamental matrix of the stereo pair
     '''
+
     F, mask = cv2.findFundamentalMat(np.array(points1), np.array(points2))
 
     error = 0.0
@@ -97,12 +98,13 @@ def find_epipoles(F):
         op: 3x1 np.matrix, epipole in image2
         (See http://www.robots.ox.ac.uk/~vgg/hzbook/hzbook2/HZepipolar.pdf)
     '''
+
     U, S, V = np.linalg.svd(F)
     o = np.matrix(V[-1]).getT()     # Approx. right-null vector.
     op = np.matrix(U[:, -1]).getT() # Approx. left-null vector.
 
     error = 0.0
-    error += np.linalg.norm(F*o)
+    error += np.linalg.norm(F * o)
     error += np.linalg.norm(op.getT() * F)
 
     print "Epipole 1:\n", o
