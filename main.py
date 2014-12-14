@@ -1,8 +1,12 @@
+#!/usr/bin/python2
+
 import argparse
 import json
-import feature_descriptor
-import cv2
 from pprint import pprint
+
+import cv2
+
+import feature_descriptor
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CS 194-26 Final Project by Vedant Kumar, Melanie Cebula, and Siddhartho Bhattacharya")
@@ -11,7 +15,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     json_filename = args.filename
-    with open(json_filename) as f:
+    with open(json_filename, 'r') as f:
         #tuples of image names and camera pose (theta, phi, calibration matrix)
         data = json.load(f)
         #uncomment to print json data format
