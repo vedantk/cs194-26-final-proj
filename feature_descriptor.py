@@ -93,15 +93,18 @@ def find_fundamental_matrix(points1, points2):
         points2: a list of matching (r, c) points in the second image
     Output:
         F: np.matrix, the fundamental matrix of the stereo pair
-        F_err: approximation error
     '''
     bestF = None
-    minError = np.float("inf")
+    mostInliers = np.float("-inf")
     n = len(points1)
 
-    for i in range(10000):
+    for i in range(4000):
         #Pick random sample of size k
-        k = random.choice(range(1,n))
+        #TODO:  trying with 8 random points, could do much better to make sure rank(res) = 8
+        #A ranodm selection of points might be better right now.  Still quite bad for chapstick and board- try other images? 
+        #(preferably with an extremely distinct shape like octopus)
+        #k = random.choice(range(1,n))
+        k = 8
         indices = [i for i in range(n)]
         random_idx = []
         for i in range(k):
@@ -136,21 +139,24 @@ def find_fundamental_matrix(points1, points2):
         F = np.reshape(F, (3,3)) #F is now 3x3 where F_3,3 is 1
 
         error = 0.0
+        count = 0
         for i, (pt1, pt2) in enumerate(zip(points1, points2)):
             #if mask[i]:
             a, b = pt1
             c, d = pt2
             e = np.matrix([c, d, 1]) * (F * np.matrix([[a], [b], [1]]))
-            error += e[0, 0]**2
+            #TODO:  finding a good threshold
+            if error < 0.0001:
+                error += e[0, 0]**2
+                count += 1
         #If this F minimizes error, update bestF
-        if error < minError:
-            minError = error
+        if count > mostInliers:
+            mostInliers = count
             bestF = F
 
     #Use bestF found, with minError
     print "Fundamental matrix:\n", bestF
-    print "-> Approximation error =", minError
-    return np.matrix(bestF), minError
+    return np.matrix(bestF)
  
 ######################
 ## <HELPER METHODS> ##
@@ -259,7 +265,7 @@ if __name__ == '__main__':
     # XXX: test if normalization actually helps.
     points1, points2 = map(normalize_points, (img1, img2), (points1, points2))
 
-    F, F_err = find_fundamental_matrix(points1, points2)
+    F = find_fundamental_matrix(points1, points2)
 
     # XXX: check what the effect is on the reconstruction error.
     # points1, points2 = cv2.correctMatches(F, np.array([points1]),
@@ -274,8 +280,8 @@ if __name__ == '__main__':
     for u1, u2 in zip(points1, points2):
         X, err = reconstruct.reconstruct(P1, P2, u1, u2)
         # print "Mapping", (u1, u2), "to:\n", X, "(error = %f)" % (err,)
-        if err < reconstruct.ERROR_THRESH:
-            points3d.append(X)
+        #if err < reconstruct.ERROR_THRESH:
+        points3d.append(X)
         depth_err += err
     print "Total depth reconstruction error:", depth_err
     print "Accepted", len(points3d), "of", len(points1), "correspondences"
