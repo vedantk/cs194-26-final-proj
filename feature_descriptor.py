@@ -5,6 +5,7 @@ from collections import namedtuple
 
 import cv2
 import numpy as np
+import random
 from scipy.spatial import KDTree as kdt
 from matplotlib import pyplot as plt
 
@@ -88,41 +89,62 @@ def find_fundamental_matrix(points1, points2):
     Output:
         F: np.matrix, the fundamental matrix of the stereo pair
     '''
-    #Try different subsets of points1, points2 instead of using all of them
-    #RANSAC:  find current bestF for minimized error, iterate a bunch of times, return actual best
+    bestF = None
+    minError = np.float("inf")
     n = len(points1)
-    A = points1[:,0]
-    Ap = points2[:,0]
-    B = points1[:,1]
-    Bp = points2[:,1]
-    #all above are shape (200,)
-    ApA = np.multiply(Ap, A) #(200, 1)
-    ApB = np.multiply(Ap, B)
-    BpA = np.multiply(Bp, A)
-    BpB = np.multiply(Bp, B)
-    res = np.column_stack((ApA, ApB, Ap, BpA, BpB, Bp, A, B)) #(200, 8)
-    #b = np.array([-1, -1, -1, -1, -1, -1, -1, -1])
-    b = np.zeros((n,1))
-    b[:,0] = -1
 
-    F = np.linalg.lstsq(res, b)[0]
-    F = np.append(F, [1])
-    F = np.reshape(F, (3,3)) #F is now 3x3 where F_3,3 is 1
+    for i in range(10000):
+        #Pick random sample of size k
+        k = random.choice(range(1,n))
+        indices = [i for i in range(n)]
+        random_idx = []
+        for i in range(k):
+            random_idx.append(random.choice(indices))
 
-    #F, mask = cv2.findFundamentalMat(np.array(points1), np.array(points2))
+        #samples frmo points1 and points2
+        sub_points1 = []
+        sub_points2 = []
+        for idx in random_idx:
+            sub_points1.append(points1[idx,:])
+            sub_points2.append(points2[idx,:])
+        sub_points1 = np.array(sub_points1)
+        sub_points2 = np.array(sub_points2)
 
-    error = 0.0
-    for i, (pt1, pt2) in enumerate(zip(points1, points2)):
-        #if mask[i]:
-        a, b = pt1
-        c, d = pt2
-        e = np.matrix([c, d, 1]) * (F * np.matrix([[a], [b], [1]]))
-        error += e[0, 0]**2
+        #Break each sample down into elements A, B
+        A = sub_points1[:,0]
+        Ap = sub_points2[:,0]
+        B = sub_points1[:,1]
+        Bp = sub_points2[:,1]
 
-    print "Fundamental matrix:\n", F
-    print "-> Approximation error =", error
-    print "-> # of correspondence points =", len(points1)
-    return np.matrix(F)
+        #Preparing to solve res*F = b
+        ApA = np.multiply(Ap, A) #(200, 1)
+        ApB = np.multiply(Ap, B)
+        BpA = np.multiply(Bp, A)
+        BpB = np.multiply(Bp, B)
+        res = np.column_stack((ApA, ApB, Ap, BpA, BpB, Bp, A, B)) #(200, 8)
+        b = np.zeros((k,1))
+        b[:,0] = -1
+
+        F = np.linalg.lstsq(res, b)[0]
+        F = np.append(F, [1])
+        F = np.reshape(F, (3,3)) #F is now 3x3 where F_3,3 is 1
+
+        error = 0.0
+        for i, (pt1, pt2) in enumerate(zip(points1, points2)):
+            #if mask[i]:
+            a, b = pt1
+            c, d = pt2
+            e = np.matrix([c, d, 1]) * (F * np.matrix([[a], [b], [1]]))
+            error += e[0, 0]**2
+        #If this F minimizes error, update bestF
+        if error < minError:
+            minError = error
+            bestF = F
+
+    #Use bestF found, with minError
+    print "Fundamental matrix:\n", bestF
+    print "-> Approximation error =", minError
+    return np.matrix(bestF)
  
 ######################
 ## <HELPER METHODS> ##
