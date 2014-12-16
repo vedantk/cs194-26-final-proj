@@ -95,6 +95,7 @@ def find_fundamental_matrix(points1, points2):
         F: np.matrix, the fundamental matrix of the stereo pair
     '''
     bestF = None
+    bestPts = None
     mostInliers = np.float("-inf")
     n = len(points1)
 
@@ -106,9 +107,7 @@ def find_fundamental_matrix(points1, points2):
         #k = random.choice(range(1,n))
         k = 8
         indices = [i for i in range(n)]
-        random_idx = []
-        for i in range(k):
-            random_idx.append(random.choice(indices))
+        random_idx = random.sample(indices, k)
 
         #samples frmo points1 and points2
         sub_points1 = []
@@ -140,6 +139,7 @@ def find_fundamental_matrix(points1, points2):
 
         error = 0.0
         count = 0
+        pts = []
         for i, (pt1, pt2) in enumerate(zip(points1, points2)):
             #if mask[i]:
             a, b = pt1
@@ -149,14 +149,16 @@ def find_fundamental_matrix(points1, points2):
             if error < 0.0001:
                 error += e[0, 0]**2
                 count += 1
+                pts.append([pt1, pt2])
         #If this F minimizes error, update bestF
         if count > mostInliers:
             mostInliers = count
             bestF = F
+            bestPts = pts
 
     #Use bestF found, with minError
     print "Fundamental matrix:\n", bestF
-    return np.matrix(bestF)
+    return np.matrix(bestF), bestPts
  
 ######################
 ## <HELPER METHODS> ##
@@ -265,7 +267,7 @@ if __name__ == '__main__':
     # XXX: test if normalization actually helps.
     points1, points2 = map(normalize_points, (img1, img2), (points1, points2))
 
-    F = find_fundamental_matrix(points1, points2)
+    F, selected_pts = find_fundamental_matrix(points1, points2)
 
     # XXX: check what the effect is on the reconstruction error.
     # points1, points2 = cv2.correctMatches(F, np.array([points1]),
@@ -277,12 +279,14 @@ if __name__ == '__main__':
     P1, P2 = reconstruct.approx_perspective_projections(F)
     points3d = []
     depth_err = 0.0
-    for u1, u2 in zip(points1, points2):
+    #for u1, u2 in zip(points1, points2):
+    for u1, u2 in selected_pts:
         X, err = reconstruct.reconstruct(P1, P2, u1, u2)
         # print "Mapping", (u1, u2), "to:\n", X, "(error = %f)" % (err,)
         #if err < reconstruct.ERROR_THRESH:
         points3d.append(X)
         depth_err += err
+
     print "Total depth reconstruction error:", depth_err
     print "Accepted", len(points3d), "of", len(points1), "correspondences"
     reconstruct.render(points3d)
