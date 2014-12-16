@@ -35,7 +35,7 @@ def find_features(img, method='SIFT', nfeatures=1000):
         patches, coords = preparePatches(img, keyPts)
         return FeatureDescriptor(coords, patches)
 
-def find_matches(features1, features2, method='SIFT', nmatches=200):
+def find_matches(features1, features2, method='SIFT', nmatches=220):
     '''
     Input:
         features1, features2: FeatureDescriptor for each image
@@ -54,13 +54,18 @@ def find_matches(features1, features2, method='SIFT', nmatches=200):
         flann = cv2.FlannBasedMatcher({'algorithm': 0, 'trees': 5},
                                       {'checks': 50})
         matches = flann.knnMatch(des1, des2, k=2)
+
+        # XXX: it's unclear why this helps.
         matches = sorted(matches, key=lambda (m, n): m.distance / n.distance)
+
+        # Applying the ratio test seems to prune many bad matches.
         for m, n in matches:
             if m.distance < 0.8*n.distance:
                 points1.append(features1.pos[m.queryIdx])
                 points2.append(features2.pos[m.trainIdx])
             if len(points1) >= nmatches:
                 break
+
         return points1, points2
     elif method == 'MOPS':
         patches1, coords1 = features1.desc, features1.pos
@@ -88,6 +93,7 @@ def find_fundamental_matrix(points1, points2):
         points2: a list of matching (r, c) points in the second image
     Output:
         F: np.matrix, the fundamental matrix of the stereo pair
+        F_err: approximation error
     '''
     bestF = None
     minError = np.float("inf")
@@ -144,7 +150,7 @@ def find_fundamental_matrix(points1, points2):
     #Use bestF found, with minError
     print "Fundamental matrix:\n", bestF
     print "-> Approximation error =", minError
-    return np.matrix(bestF)
+    return np.matrix(bestF), minError
  
 ######################
 ## <HELPER METHODS> ##
@@ -235,6 +241,7 @@ def matchPoints(patch1, patch2, coord1, coord2, thresh=0.4):
 ## </HELPER METHODS> ##
 #######################
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('img1')
@@ -249,21 +256,35 @@ if __name__ == '__main__':
     features2 = find_features(img2)
     points1, points2 = find_matches(features1, features2)
 
-    # XXX: Need to test whether normalization actually helps.
+    # XXX: test if normalization actually helps.
     points1, points2 = map(normalize_points, (img1, img2), (points1, points2))
 
-    F = find_fundamental_matrix(points1, points2)
+    F, F_err = find_fundamental_matrix(points1, points2)
+
+    # XXX: check what the effect is on the reconstruction error.
+    # points1, points2 = cv2.correctMatches(F, np.array([points1]),
+    #         np.array([points2]))
+    # points1 = points1[0]
+    # points2 = points2[0]
+
     o, op = reconstruct.find_epipoles(F)
     P1, P2 = reconstruct.approx_perspective_projections(F)
     points3d = []
     depth_err = 0.0
     for u1, u2 in zip(points1, points2):
         X, err = reconstruct.reconstruct(P1, P2, u1, u2)
-        print "Mapping", (u1, u2), "to 3-d point:\n", X, "(error = %f)" % (err,)
+        # print "Mapping", (u1, u2), "to:\n", X, "(error = %f)" % (err,)
+        if err < reconstruct.ERROR_THRESH:
+            points3d.append(X)
         depth_err += err
-        points3d.append(X)
     print "Total depth reconstruction error:", depth_err
+    print "Accepted", len(points3d), "of", len(points1), "correspondences"
     reconstruct.render(points3d)
+
+    # XXX: Why does opencv's triangulation method look like garbage?
+    # points4d = cv2.triangulatePoints(P1, P2, points1.T, points2.T)
+    # points3d_cv2 = [np.array([x/t, y/t, z/t]) for x, y, z, t in zip(*points4d)]
+    # reconstruct.render(points3d_cv2)
 
     ## Test for MOPS
     #mops_feat1 = find_features(img1, method="MOPS")

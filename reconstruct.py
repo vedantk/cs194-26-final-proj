@@ -8,6 +8,9 @@ import numpy.linalg as LA
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
+# Maximum error for depth reconstruction.
+ERROR_THRESH = 0.01
+
 def find_epipoles(F):
     '''
     Input:
@@ -108,7 +111,7 @@ def reconstruct(P1, P2, u1, u2):
 
     x, residuals, rank, s = LA.lstsq(L, b)
 
-    return x[:3], np.sum(residuals)
+    return x[:3], np.sum([r**2 for r in residuals])
 
 def render(points):
     '''
