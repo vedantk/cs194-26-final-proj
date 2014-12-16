@@ -100,39 +100,41 @@ def find_fundamental_matrix(points1, points2):
     n = len(points1)
 
     for i in range(4000):
-        #Pick random sample of size k
-        #TODO:  trying with 8 random points, could do much better to make sure rank(res) = 8
-        #A ranodm selection of points might be better right now.  Still quite bad for chapstick and board- try other images? 
-        #(preferably with an extremely distinct shape like octopus)
-        #k = random.choice(range(1,n))
+        #Pick random sample of size k = 8, without repetition
         k = 8
         indices = [i for i in range(n)]
-        random_idx = random.sample(indices, k)
+        res = None
+        #res must have rank 8, otherwise it is degenerate
+        while res == None or np.linalg.matrix_rank(res) != 8:
+            random_idx = random.sample(indices, k)
 
-        #samples frmo points1 and points2
-        sub_points1 = []
-        sub_points2 = []
-        for idx in random_idx:
-            sub_points1.append(points1[idx,:])
-            sub_points2.append(points2[idx,:])
-        sub_points1 = np.array(sub_points1)
-        sub_points2 = np.array(sub_points2)
+            #samples frmo points1 and points2
+            sub_points1 = []
+            sub_points2 = []
+            for idx in random_idx:
+                sub_points1.append(points1[idx,:])
+                sub_points2.append(points2[idx,:])
+            sub_points1 = np.array(sub_points1)
+            sub_points2 = np.array(sub_points2)
 
-        #Break each sample down into elements A, B
-        A = sub_points1[:,0]
-        Ap = sub_points2[:,0]
-        B = sub_points1[:,1]
-        Bp = sub_points2[:,1]
+            #Break each sample down into elements A, B
+            A = sub_points1[:,0]
+            Ap = sub_points2[:,0]
+            B = sub_points1[:,1]
+            Bp = sub_points2[:,1]
 
-        #Preparing to solve res*F = b
-        ApA = np.multiply(Ap, A) #(200, 1)
-        ApB = np.multiply(Ap, B)
-        BpA = np.multiply(Bp, A)
-        BpB = np.multiply(Bp, B)
-        res = np.column_stack((ApA, ApB, Ap, BpA, BpB, Bp, A, B)) #(200, 8)
+            #creating res for res*x = b 
+            ApA = np.multiply(Ap, A) #shape (k, 1)
+            ApB = np.multiply(Ap, B)
+            BpA = np.multiply(Bp, A)
+            BpB = np.multiply(Bp, B)
+            res = np.column_stack((ApA, ApB, Ap, BpA, BpB, Bp, A, B)) #(k, 8)
+
+        #creating b for res*x = b
         b = np.zeros((k,1))
         b[:,0] = -1
 
+        #Construct F using lstsq
         F = np.linalg.lstsq(res, b)[0]
         F = np.append(F, [1])
         F = np.reshape(F, (3,3)) #F is now 3x3 where F_3,3 is 1
@@ -141,22 +143,23 @@ def find_fundamental_matrix(points1, points2):
         count = 0
         pts = []
         for i, (pt1, pt2) in enumerate(zip(points1, points2)):
-            #if mask[i]:
             a, b = pt1
             c, d = pt2
             e = np.matrix([c, d, 1]) * (F * np.matrix([[a], [b], [1]]))
+            err = e[0, 0]**2
             #TODO:  finding a good threshold
-            if error < 0.0001:
-                error += e[0, 0]**2
+            if err < 0.0001:
+                error += err
+                #Increase number of inliers
                 count += 1
                 pts.append([pt1, pt2])
-        #If this F minimizes error, update bestF
+        #If there are more inliers, update F
         if count > mostInliers:
             mostInliers = count
             bestF = F
             bestPts = pts
 
-    #Use bestF found, with minError
+    #Use bestF found, with most inliers
     print "Fundamental matrix:\n", bestF
     return np.matrix(bestF), bestPts
  
