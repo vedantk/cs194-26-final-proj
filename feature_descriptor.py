@@ -94,7 +94,7 @@ def find_fundamental_matrix(points1, points2):
     Output:
         F: np.matrix, the fundamental matrix of the stereo pair
         F_err: approximation error
-        outliers: list of outlier indices
+        outliers: set of outlier indices
     '''
 
     assert len(points1) == len(points2)
@@ -123,7 +123,7 @@ def find_fundamental_matrix(points1, points2):
 
         cur_F = np.matrix(np.array(list(x) + [[1]]).reshape(3, 3))
 
-        # Estimate # of inliers, inlier error, and total error.
+        # Estimate # of inliers, inlier error, and outliers.
         in_error = 0.0
         cur_ninliers = 0
         cur_outliers = []
@@ -156,7 +156,7 @@ def find_fundamental_matrix(points1, points2):
     print "Fundamental matrix:\n", F
     print "-> Approximation error =", F_err, "(given", len(points1), "matches)"
     print "-> Found", ninliers, "inliers"
-    return F, F_err, outliers
+    return F, F_err, set(outliers)
  
 ######################
 ## <HELPER METHODS> ##
@@ -283,7 +283,6 @@ if __name__ == '__main__':
     P1, P2 = reconstruct.approx_perspective_projections(F)
     points3d = []
     reconstruct_err = 0.0
-    outliers = set(outliers)
     for i, (u1, u2) in enumerate(zip(points1, points2)):
         if i in outliers:
             continue
