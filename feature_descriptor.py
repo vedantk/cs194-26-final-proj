@@ -83,7 +83,6 @@ def normalize_points(img, points):
     Output:
         pointsn: normalized point array
     '''
-
     h, w = map(float, img.shape[:2])
     return np.array([np.array([r/h, c/w]) for (r, c) in points])
 
@@ -253,15 +252,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('img1')
     parser.add_argument('img2')
+    parser.add_argument('--MOPS', action='store_true')
     args = parser.parse_args()
 
     img1 = cv2.cvtColor(cv2.imread(args.img1), cv2.COLOR_BGR2GRAY)
     img2 = cv2.cvtColor(cv2.imread(args.img2), cv2.COLOR_BGR2GRAY)
 
     ## Test for SIFT
-    features1 = find_features(img1)
-    features2 = find_features(img2)
-    points1, points2 = find_matches(features1, features2)
+    if args.MOPS:
+        features1 = find_features(img1, method='MOPS')
+        features2 = find_features(img2, method='MOPS')
+        points1, points2 = find_matches(features1, features2, method='MOPS')
+    else:
+        features1 = find_features(img1)
+        features2 = find_features(img2)
+        points1, points2 = find_matches(features1, features2)
 
     # XXX: test if normalization actually helps.
     points1, points2 = map(normalize_points, (img1, img2), (points1, points2))
