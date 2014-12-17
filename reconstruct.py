@@ -8,9 +8,6 @@ import numpy.linalg as LA
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
-# Maximum error for depth reconstruction.
-ERROR_THRESH = 0.01
-
 def find_epipoles(F):
     '''
     Input:

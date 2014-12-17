@@ -2,10 +2,11 @@
 
 import argparse
 from collections import namedtuple
+import random
 
 import cv2
 import numpy as np
-import random
+import numpy.linalg as LA
 from scipy.spatial import KDTree as kdt
 from matplotlib import pyplot as plt
 
@@ -16,7 +17,7 @@ import reconstruct
 # + desc: np.array of feature vectors collected at positions given in @pos
 FeatureDescriptor = namedtuple('FeatureDescriptor', 'pos desc')
 
-def find_features(img, method='SIFT', nfeatures=1000):
+def find_features(img, method='SIFT', nfeatures=250):
     '''
     Input:
         img: a cv2 image (color images are supported)
@@ -27,7 +28,7 @@ def find_features(img, method='SIFT', nfeatures=1000):
     '''
 
     if method == 'SIFT':
-        sift = cv2.SIFT(nfeatures)
+        sift = cv2.SIFT(nfeatures=nfeatures, edgeThreshold=10)
         kp, des = sift.detectAndCompute(img, None)
         return FeatureDescriptor([K.pt for K in kp], des)
     elif method == 'MOPS':
@@ -35,7 +36,7 @@ def find_features(img, method='SIFT', nfeatures=1000):
         patches, coords = preparePatches(img, keyPts)
         return FeatureDescriptor(coords, patches)
 
-def find_matches(features1, features2, method='SIFT', nmatches=220):
+def find_matches(features1, features2, method='SIFT', nmatches=225):
     '''
     Input:
         features1, features2: FeatureDescriptor for each image
@@ -93,75 +94,70 @@ def find_fundamental_matrix(points1, points2):
         points2: a list of matching (r, c) points in the second image
     Output:
         F: np.matrix, the fundamental matrix of the stereo pair
+        F_err: approximation error
+        outliers: list of outlier indices
     '''
-    bestF = None
-    bestPts = None
-    mostInliers = np.float("-inf")
-    n = len(points1)
 
-    for i in range(4000):
-        #Pick random sample of size k = 8, without repetition
-        k = 8
-        indices = [i for i in range(n)]
-        res = None
-        #res must have rank 8, otherwise it is degenerate
-        while res == None or np.linalg.matrix_rank(res) != 8:
-            random_idx = random.sample(indices, k)
+    assert len(points1) == len(points2)
+    candidates = range(len(points1))
 
-            #samples frmo points1 and points2
-            sub_points1 = []
-            sub_points2 = []
-            for idx in random_idx:
-                sub_points1.append(points1[idx,:])
-                sub_points2.append(points2[idx,:])
-            sub_points1 = np.array(sub_points1)
-            sub_points2 = np.array(sub_points2)
+    F = None
+    F_err = float('inf')
+    ninliers = 0
+    outliers = []
+    max_iters = max(1000, 10*len(points1))
 
-            #Break each sample down into elements A, B
-            A = sub_points1[:,0]
-            Ap = sub_points2[:,0]
-            B = sub_points1[:,1]
-            Bp = sub_points2[:,1]
+    for j in xrange(max_iters):
+        rows = []
+        samples = random.sample(candidates, 8)
+        for k in samples:
+            A, B = points1[k]
+            Ap, Bp = points2[k]
+            rows.append([Ap*A, Ap*B, Ap, Bp*A, Bp*B, Bp, A, B])
+        A = np.matrix(rows)
+        b = np.matrix([[-1]] * 8)
+        x, residuals, rank, s = LA.lstsq(A, b)
 
-            #creating res for res*x = b 
-            ApA = np.multiply(Ap, A) #shape (k, 1)
-            ApB = np.multiply(Ap, B)
-            BpA = np.multiply(Bp, A)
-            BpB = np.multiply(Bp, B)
-            res = np.column_stack((ApA, ApB, Ap, BpA, BpB, Bp, A, B)) #(k, 8)
+        # The system is under-constrained, no need to waste time evaluating it.
+        if rank < 8:
+            continue
 
-        #creating b for res*x = b
-        b = np.zeros((k,1))
-        b[:,0] = -1
+        cur_F = np.matrix(np.array(list(x) + [[1]]).reshape(3, 3))
 
-        #Construct F using lstsq
-        F = np.linalg.lstsq(res, b)[0]
-        F = np.append(F, [1])
-        F = np.reshape(F, (3,3)) #F is now 3x3 where F_3,3 is 1
-
-        error = 0.0
-        count = 0
-        pts = []
+        # Estimate # of inliers, inlier error, and total error.
+        in_error = 0.0
+        cur_ninliers = 0
+        cur_outliers = []
         for i, (pt1, pt2) in enumerate(zip(points1, points2)):
             a, b = pt1
             c, d = pt2
-            e = np.matrix([c, d, 1]) * (F * np.matrix([[a], [b], [1]]))
-            err = e[0, 0]**2
-            #TODO:  finding a good threshold
-            if err < 0.0001:
-                error += err
-                #Increase number of inliers
-                count += 1
-                pts.append([pt1, pt2])
-        #If there are more inliers, update F
-        if count > mostInliers:
-            mostInliers = count
-            bestF = F
-            bestPts = pts
+            e = np.matrix([c, d, 1]) * (cur_F * np.matrix([[a], [b], [1]]))
+            pt_err = e[0, 0]**2
+            if pt_err < 0.01:
+                cur_ninliers += 1
+                in_error += pt_err
+            else:
+                cur_outliers.append(i)
 
-    #Use bestF found, with most inliers
-    print "Fundamental matrix:\n", bestF
-    return np.matrix(bestF), bestPts
+        if ninliers < 0.5*len(points1):
+            # We don't have very many inliers.
+            # In this regime, work to increase the # of inliers.
+            if ninliers < cur_ninliers:
+                print "o",
+                F_err, ninliers, outliers = in_error, cur_ninliers, cur_outliers
+                F = cur_F
+        else:
+            # We now have at least 50% of the points as inliers.
+            # In this regime, work to just decrease the inlier error.
+            if F_err > in_error and cur_ninliers >= 0.5*len(points1):
+                print ".",
+                F_err, ninliers, outliers = in_error, cur_ninliers, cur_outliers
+                F = cur_F
+
+    print "Fundamental matrix:\n", F
+    print "-> Approximation error =", F_err, "(given", len(points1), "matches)"
+    print "-> Found", ninliers, "inliers"
+    return F, F_err, outliers
  
 ######################
 ## <HELPER METHODS> ##
@@ -259,8 +255,8 @@ if __name__ == '__main__':
     parser.add_argument('img2')
     args = parser.parse_args()
 
-    img1 = cv2.imread(args.img1)
-    img2 = cv2.imread(args.img2)  
+    img1 = cv2.cvtColor(cv2.imread(args.img1), cv2.COLOR_BGR2GRAY)
+    img2 = cv2.cvtColor(cv2.imread(args.img2), cv2.COLOR_BGR2GRAY)
 
     ## Test for SIFT
     features1 = find_features(img1)
@@ -270,9 +266,9 @@ if __name__ == '__main__':
     # XXX: test if normalization actually helps.
     points1, points2 = map(normalize_points, (img1, img2), (points1, points2))
 
-    F, selected_pts = find_fundamental_matrix(points1, points2)
+    F, F_err, outliers = find_fundamental_matrix(points1, points2)
 
-    # XXX: check what the effect is on the reconstruction error.
+    # XXX: test if correctMatches improves reconstruction error.
     # points1, points2 = cv2.correctMatches(F, np.array([points1]),
     #         np.array([points2]))
     # points1 = points1[0]
@@ -281,23 +277,18 @@ if __name__ == '__main__':
     o, op = reconstruct.find_epipoles(F)
     P1, P2 = reconstruct.approx_perspective_projections(F)
     points3d = []
-    depth_err = 0.0
-    #for u1, u2 in zip(points1, points2):
-    for u1, u2 in selected_pts:
+    reconstruct_err = 0.0
+    outliers = set(outliers)
+    for i, (u1, u2) in enumerate(zip(points1, points2)):
+        if i in outliers:
+            continue
         X, err = reconstruct.reconstruct(P1, P2, u1, u2)
         # print "Mapping", (u1, u2), "to:\n", X, "(error = %f)" % (err,)
-        #if err < reconstruct.ERROR_THRESH:
         points3d.append(X)
-        depth_err += err
-
-    print "Total depth reconstruction error:", depth_err
+        reconstruct_err += err
+    print "Total depth reconstruction error:", reconstruct_err
     print "Accepted", len(points3d), "of", len(points1), "correspondences"
     reconstruct.render(points3d)
-
-    # XXX: Why does opencv's triangulation method look like garbage?
-    # points4d = cv2.triangulatePoints(P1, P2, points1.T, points2.T)
-    # points3d_cv2 = [np.array([x/t, y/t, z/t]) for x, y, z, t in zip(*points4d)]
-    # reconstruct.render(points3d_cv2)
 
     ## Test for MOPS
     #mops_feat1 = find_features(img1, method="MOPS")
