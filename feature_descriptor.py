@@ -258,7 +258,6 @@ if __name__ == '__main__':
     img1 = cv2.cvtColor(cv2.imread(args.img1), cv2.COLOR_BGR2GRAY)
     img2 = cv2.cvtColor(cv2.imread(args.img2), cv2.COLOR_BGR2GRAY)
 
-    ## Test for SIFT
     if args.MOPS:
         features1 = find_features(img1, method='MOPS')
         features2 = find_features(img2, method='MOPS')
@@ -268,16 +267,9 @@ if __name__ == '__main__':
         features2 = find_features(img2)
         points1, points2 = find_matches(features1, features2)
 
-    # XXX: test if normalization actually helps.
     points1, points2 = map(normalize_points, (img1, img2), (points1, points2))
 
     F, F_err, outliers = find_fundamental_matrix(points1, points2)
-
-    # XXX: test if correctMatches improves reconstruction error.
-    # points1, points2 = cv2.correctMatches(F, np.array([points1]),
-    #         np.array([points2]))
-    # points1 = points1[0]
-    # points2 = points2[0]
 
     o, op = reconstruct.find_epipoles(F)
     P1, P2 = reconstruct.approx_perspective_projections(F)
@@ -293,9 +285,3 @@ if __name__ == '__main__':
     print "Total depth reconstruction error:", reconstruct_err
     print "Accepted", len(points3d), "of", len(points1), "correspondences"
     reconstruct.render(points3d)
-
-    ## Test for MOPS
-    #mops_feat1 = find_features(img1, method="MOPS")
-    #mops_feat2 = find_features(img2, method="MOPS")
-    #points1, points2 = find_matches(mops_feat1, mops_feat2, method="MOPS")
-    #print zip(points1, points2)
