@@ -29,7 +29,7 @@ def find_fundamental_matrix(points1, points2):
     ninliers = 0
     outliers = []
     iters_needed = 0
-    max_iters = max(1000, 10*len(points1))
+    max_iters = max(1000, len(points1))
 
     for j in xrange(max_iters):
         rows = []
