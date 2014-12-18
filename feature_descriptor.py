@@ -3,6 +3,7 @@
 import argparse
 from collections import namedtuple
 import random
+import math
 
 import cv2
 import numpy as np
@@ -293,7 +294,11 @@ def povray(off_file):
                 idx = int(line[i])
                 pt = lines[idx + 2].split()  #string of three floats separated by space
                 all_points.append(map(float, pt))
-                output += "<" + str(pt[0]) + ", " + str(pt[1]) + ", " + str(pt[2]) + ">"
+                #TODO:  STILL causes "Possible Parse Error: Singular matrix in MInvers."
+                x = str(math.floor(float(pt[0]) * 10000) / 10000)
+                y = str(math.floor(float(pt[1]) * 10000) / 10000)
+                z = str(math.floor(float(pt[2]) * 10000) / 10000)
+                output += "<" + x + ", " + y + ", " + z + ">"
                 if i != num_pts:
                     output += ", "
             if num_pts > 3:
