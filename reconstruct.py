@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 
-import random
+import random, itertools
 
 import cv2
 import numpy as np
@@ -208,7 +208,16 @@ def stereo_reconstruct(img1, img2, method='SIFT'):
     # Find and normalize canonical features.
     features1 = feature_descriptor.find_features(img1, method)
     features2 = feature_descriptor.find_features(img2, method)
-    points1, points2 = feature_descriptor.find_matches(features1, features2)
+    points1, points2 = feature_descriptor.find_matches(features1, features2, method)
+    points1_p, points2_p = [], []
+    for pt1, pt2 in zip(points1, points2):
+        x1,y1 = pt1
+        x2,y2 = pt2
+        for x, y in itertools.product([x1-1,x1,x1+1],[y1-1,y1,y1+1]):
+            points1_p.append((x,y))
+        for x, y in itertools.product([x2-1,x2,x2+1],[y2-1,y2,y2+1]):
+            points2_p.append((x,y))
+    points1_p, points2_p = np.array(points1_p), np.array(points2_p)
     points1, points2 = map(normalize_points, (img1, img2), (points1_p, points2_p))
 
     # Build fundamental matrix and projection matrices.

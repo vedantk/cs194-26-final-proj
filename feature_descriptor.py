@@ -90,9 +90,9 @@ def findHarris(gray, blockSize=3, ksize=3, k=0.04, edgeWidth=20):
   corners = cv2.cornerHarris(gray, blockSize, ksize, k)
   dst = blockMax(corners, 3)
   dst[:edgeWidth,:] = 0.0
-  dst[im.shape[0]-edgeWidth:,:] = 0.0
+  dst[gray.shape[0]-edgeWidth:,:] = 0.0
   dst[:,:edgeWidth] = 0.0
-  dst[:,im.shape[1]-edgeWidth:] = 0.0
+  dst[:,gray.shape[1]-edgeWidth:] = 0.0
   return dst
 
 def maxCoords(arr, n):
