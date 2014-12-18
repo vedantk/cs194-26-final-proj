@@ -9,6 +9,8 @@ import numpy.linalg as LA
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
+import feature_descriptor
+
 def find_fundamental_matrix(points1, points2):
     '''
     Input:
@@ -28,7 +30,7 @@ def find_fundamental_matrix(points1, points2):
     ninliers = 0
     outliers = []
     iters_needed = 0
-    max_iters = max(1000, 10*len(points1))
+    max_iters = min(1000, 10*len(points1))
 
     for j in xrange(max_iters):
         rows = []
@@ -139,7 +141,7 @@ def approx_perspective_projections(F):
 
     return P1, P2
 
-def reconstruct(P1, P2, u1, u2):
+def triangulate(P1, P2, u1, u2):
     '''
     Input:
         P1, P2: camera 1 and 2 perspective projection matrices
@@ -201,3 +203,45 @@ def render_points(points):
     ax.set_ylabel('Y Axis')
     ax.set_zlabel('Z Axis')
     plt.show()
+
+def normalize_points(img, points):
+    '''
+    Input:
+        img: cv2 image
+        points: array of (row, col) points from img
+    Output:
+        pointsn: normalized point array
+    '''
+    h, w = map(float, img.shape[:2])
+    return np.array([np.array([r/h, c/w]) for (r, c) in points])
+ 
+def stereo_reconstruct(img1, img2, method='SIFT'):
+    '''
+    Input:
+        img1, img2: cv2 images
+    Output:
+        points3d: a list of triangulated (x, y, z) points
+    '''
+
+    # Find and normalize canonical features.
+    features1 = feature_descriptor.find_features(img1, method)
+    features2 = feature_descriptor.find_features(img2, method)
+    points1, points2 = feature_descriptor.find_matches(features1, features2)
+    points1, points2 = map(normalize_points, (img1, img2), (points1, points2))
+
+    # Build fundamental matrix and projection matrices.
+    F, F_err, outliers = find_fundamental_matrix(points1, points2)
+    o, op = find_epipoles(F)
+    P1, P2 = approx_perspective_projections(F)
+
+    points3d = []
+    reconstruct_err = 0.0
+    for i, (u1, u2) in enumerate(zip(points1, points2)):
+        if i in outliers:
+            continue
+        X, err = triangulate(P1, P2, u1, u2)
+        points3d.append(X)
+        reconstruct_err += err
+    print "Total depth reconstruction error:", reconstruct_err
+    print "Accepted", len(points3d), "of", len(points1), "correspondences"
+    return points3d

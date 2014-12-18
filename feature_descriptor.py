@@ -60,7 +60,7 @@ def find_matches(features1, features2, method='SIFT', nmatches=225):
 
         # Applying the ratio test seems to prune many bad matches.
         for m, n in matches:
-            if m.distance < 0.8*n.distance:
+            if m.distance < 0.75*n.distance:
                 points1.append(features1.pos[m.queryIdx])
                 points2.append(features2.pos[m.trainIdx])
             if len(points1) >= nmatches:
@@ -74,18 +74,6 @@ def find_matches(features1, features2, method='SIFT', nmatches=225):
         npts = min(nmatches, min(len(matched1), len(matched2)))
         return matched1[:npts], matched2[:npts]
 
-def normalize_points(img, points):
-    '''
-    Input:
-        img: cv2 image
-        points: array of (row, col) points from img
-    Output:
-        pointsn: normalized point array
-    '''
-    h, w = map(float, img.shape[:2])
-    return np.array([np.array([r/h, c/w]) for (r, c) in points])
-
- 
 ######################
 ## <HELPER METHODS> ##
 ######################
@@ -184,31 +172,6 @@ if __name__ == '__main__':
 
     img1 = cv2.cvtColor(cv2.imread(args.img1), cv2.COLOR_BGR2GRAY)
     img2 = cv2.cvtColor(cv2.imread(args.img2), cv2.COLOR_BGR2GRAY)
-
-    if args.MOPS:
-        features1 = find_features(img1, method='MOPS')
-        features2 = find_features(img2, method='MOPS')
-        points1, points2 = find_matches(features1, features2, method='MOPS')
-    else:
-        features1 = find_features(img1)
-        features2 = find_features(img2)
-        points1, points2 = find_matches(features1, features2)
-
-    points1, points2 = map(normalize_points, (img1, img2), (points1, points2))
-
-    F, F_err, outliers = reconstruct.find_fundamental_matrix(points1, points2)
-
-    o, op = reconstruct.find_epipoles(F)
-    P1, P2 = reconstruct.approx_perspective_projections(F)
-    points3d = []
-    reconstruct_err = 0.0
-    for i, (u1, u2) in enumerate(zip(points1, points2)):
-        if i in outliers:
-            continue
-        X, err = reconstruct.reconstruct(P1, P2, u1, u2)
-        # print "Mapping", (u1, u2), "to:\n", X, "(error = %f)" % (err,)
-        points3d.append(X)
-        reconstruct_err += err
-    print "Total depth reconstruction error:", reconstruct_err
-    print "Accepted", len(points3d), "of", len(points1), "correspondences"
+    kpmethod = 'MOPS' if args.MOPS else 'SIFT'
+    points3d = reconstruct.stereo_reconstruct(img1, img2, method=kpmethod)
     reconstruct.render_points(points3d)
