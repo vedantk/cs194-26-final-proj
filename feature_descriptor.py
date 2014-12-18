@@ -86,8 +86,7 @@ def blockMax(im, blockSize=3):
       filtered[r:r+blockSize, c:c+blockSize] |= block == np.max(block)
   return im*(filtered.astype(float))
 
-def findHarris(im, blockSize=3, ksize=3, k=0.04, edgeWidth=20):
-  gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY).astype("float32")
+def findHarris(gray, blockSize=3, ksize=3, k=0.04, edgeWidth=20):
   corners = cv2.cornerHarris(gray, blockSize, ksize, k)
   dst = blockMax(corners, 3)
   dst[:edgeWidth,:] = 0.0
@@ -102,8 +101,7 @@ def maxCoords(arr, n):
   topCoords[topr, topc] = arr[topr, topc]
   return topCoords
 
-def preparePatches(im, pts, blockSize=20, sampleRate=5):
-  gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+def preparePatches(gray, pts, blockSize=20, sampleRate=5):
   numr, numc = pts.shape
   r,c = np.nonzero(pts)
   coords = np.array(zip(r,c))

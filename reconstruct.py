@@ -209,7 +209,7 @@ def stereo_reconstruct(img1, img2, method='SIFT'):
     features1 = feature_descriptor.find_features(img1, method)
     features2 = feature_descriptor.find_features(img2, method)
     points1, points2 = feature_descriptor.find_matches(features1, features2)
-    points1, points2 = map(normalize_points, (img1, img2), (points1, points2))
+    points1, points2 = map(normalize_points, (img1, img2), (points1_p, points2_p))
 
     # Build fundamental matrix and projection matrices.
     F, F_err, outliers = find_fundamental_matrix(points1, points2)
