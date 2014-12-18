@@ -7,8 +7,8 @@ import cv2
 import numpy as np
 import numpy.linalg as LA
 from scipy.spatial import KDTree as kdt
-from matplotlib import pyplot as plt
 
+import render
 import reconstruct
 
 # FeatureDescriptor:
@@ -168,10 +168,14 @@ if __name__ == '__main__':
     parser.add_argument('img1')
     parser.add_argument('img2')
     parser.add_argument('--MOPS', action='store_true')
+    parser.add_argument('--render', action='store_true')
     args = parser.parse_args()
 
     img1 = cv2.cvtColor(cv2.imread(args.img1), cv2.COLOR_BGR2GRAY)
     img2 = cv2.cvtColor(cv2.imread(args.img2), cv2.COLOR_BGR2GRAY)
     kpmethod = 'MOPS' if args.MOPS else 'SIFT'
     points3d = reconstruct.stereo_reconstruct(img1, img2, method=kpmethod)
-    reconstruct.render_points(points3d)
+
+    if args.render:
+        render.render_points(points3d)
+        render.powercrust(points3d)

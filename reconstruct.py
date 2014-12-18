@@ -1,7 +1,6 @@
 #!/usr/bin/python2
 
 import random
-import operator
 
 import cv2
 import numpy as np
@@ -30,7 +29,7 @@ def find_fundamental_matrix(points1, points2):
     ninliers = 0
     outliers = []
     iters_needed = 0
-    max_iters = min(1000, 10*len(points1))
+    max_iters = max(1000, 10*len(points1))
 
     for j in xrange(max_iters):
         rows = []
@@ -186,23 +185,6 @@ def triangulate(P1, P2, u1, u2):
 
     x, residuals, rank, s = LA.lstsq(L, b)
     return x[:3], np.sum([r**2 for r in residuals])
-
-def render_points(points):
-    '''
-    Input:
-        points: array of (x, y, z) locations
-    '''
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    xs = map(operator.itemgetter(0), points)
-    ys = map(operator.itemgetter(1), points)
-    zs = map(operator.itemgetter(2), points)
-    ax.scatter(xs, ys, zs, c='r', marker='o')
-    ax.set_xlabel('X Axis')
-    ax.set_ylabel('Y Axis')
-    ax.set_zlabel('Z Axis')
-    plt.show()
 
 def normalize_points(img, points):
     '''
