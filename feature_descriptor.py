@@ -9,6 +9,7 @@ import numpy as np
 import numpy.linalg as LA
 from scipy.spatial import KDTree as kdt
 from matplotlib import pyplot as plt
+import os
 
 import reconstruct
 
@@ -243,6 +244,21 @@ def matchPoints(patch1, patch2, coord1, coord2, thresh=0.4):
   matched2 = coord2[patch2Idx]
   return matched1, matched2
 
+def powercrust(points3d):
+    '''
+    Input:
+        points3d: matrix of (x, y, z) points
+    Parse points3d into appropriate format and pass
+    to powercrust.  Use powercrust output to visualize mesh
+    in geomview.
+    '''
+    with open("3d.pts", "w") as f:
+        for pt in points3d:
+            x, y, z = pt
+            p = [str(float(x)), str(float(y)), str(float(z)), "\n"]
+            f.write(" ".join(p))
+    os.system("./powercrust -m 100000 -i 3d.pts && geomview pc.off")
+
 #######################
 ## </HELPER METHODS> ##
 #######################
@@ -293,6 +309,10 @@ if __name__ == '__main__':
     print "Total depth reconstruction error:", reconstruct_err
     print "Accepted", len(points3d), "of", len(points1), "correspondences"
     reconstruct.render(points3d)
+
+    #Uncomment if you'd like to run powercrust on points3d
+    #powercrust(points3d)
+
 
     ## Test for MOPS
     #mops_feat1 = find_features(img1, method="MOPS")
