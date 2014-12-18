@@ -258,9 +258,9 @@ def powercrust(points3d):
             x, y, z = pt
             p = [str(float(x)), str(float(y)), str(float(z)), "\n"]
             f.write(" ".join(p))
-    #os.system("./powercrust -m 100000 -i 3d.pts && geomview pc.off")
-    os.system("./powercrust -m 100000 -i 3d.pts")
-    povray("pc.off")
+    os.system("./powercrust -m 100000 -i 3d.pts && geomview pc.off")
+    #os.system("./powercrust -m 100000 -i 3d.pts")
+    #povray("pc.off")
 
 def povray(off_file):
     '''
