@@ -257,7 +257,73 @@ def powercrust(points3d):
             x, y, z = pt
             p = [str(float(x)), str(float(y)), str(float(z)), "\n"]
             f.write(" ".join(p))
-    os.system("./powercrust -m 100000 -i 3d.pts && geomview pc.off")
+    #os.system("./powercrust -m 100000 -i 3d.pts && geomview pc.off")
+    os.system("./powercrust -m 100000 -i 3d.pts")
+    povray("pc.off")
+
+def povray(off_file):
+    '''
+    Input:
+        f:  a .off file with faces of image
+    Parse pts into appropriate format and pass
+    to povray.
+    '''
+    #OFF
+    #number of pts, number of faces, number of lines
+    #3d pts 
+    #faces
+    all_points = []
+    with open(off_file, "r") as inp:
+        lines = inp.readlines()
+    num_pts, num_faces, num_lines = lines[1].split()
+    num_pts, num_faces, num_lines = int(num_pts), int(num_faces), int(num_lines)
+    with open("3dmesh.pov", "w") as out:
+        start = 2 + num_pts
+        polygons = []
+        triangles = []
+        for i in range(start, start + num_faces):
+            line = lines[i]
+            line = line.split()
+            num_pts = int(line[0])
+            if num_pts > 3:
+                output = "polygon { " + str(num_pts) + ","
+            else:
+                output = "triangle { "
+            for i in range(1, num_pts + 1):
+                idx = int(line[i])
+                pt = lines[idx + 2].split()  #string of three floats separated by space
+                all_points.append(map(float, pt))
+                output += "<" + str(pt[0]) + ", " + str(pt[1]) + ", " + str(pt[2]) + ">"
+                if i != num_pts:
+                    output += ", "
+            if num_pts > 3:
+                output += "\n pigment { color rgb <1, 0, 0> }"
+                output += " } \n"
+                polygons.append(output)
+            else:
+                output += " } \n"
+                triangles.append(output)
+        out.write("mesh { \n")
+        for t in triangles:
+            out.write(t)
+        out.write("texture {\npigment { color rgb<0.9, 0.9, 0.9> }\nfinish { ambient 0.2 diffuse 0.7 }\n }\n")
+        out.write(" } \n")
+        #no mesh
+        for p in polygons:
+            out.write(p)
+        all_points = np.array(all_points)
+        maxT = np.max(all_points, axis=0)
+        minB = np.min(all_points, axis=0)
+        lookAt = minB + 0.5*(maxT-minB)
+        k_dist = 5
+        camera = lookAt + k_dist*(maxT[0] - minB[0])*np.array([1,0,0])
+        out.write("camera {\nlocation <" + str(camera[0]) + ", " + str(camera[1]) + ", " + str(camera[2]) +">\n")
+        out.write("look_at <" + str(lookAt[0]) + ", " + str(lookAt[1]) + ", " + str(lookAt[2]) + ">\n}")
+
+
+
+
+
 
 #######################
 ## </HELPER METHODS> ##
@@ -311,7 +377,7 @@ if __name__ == '__main__':
     reconstruct.render(points3d)
 
     #Uncomment if you'd like to run powercrust on points3d
-    #powercrust(points3d)
+    powercrust(points3d)
 
 
     ## Test for MOPS
