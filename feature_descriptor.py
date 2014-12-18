@@ -2,7 +2,6 @@
 
 import argparse
 from collections import namedtuple
-import random
 
 import cv2
 import numpy as np
@@ -28,7 +27,7 @@ def find_features(img, method='SIFT', nfeatures=250):
     '''
 
     if method == 'SIFT':
-        sift = cv2.SIFT(nfeatures=nfeatures, edgeThreshold=10)
+        sift = cv2.SIFT(nfeatures=nfeatures, edgeThreshold=25)
         kp, des = sift.detectAndCompute(img, None)
         return FeatureDescriptor([K.pt for K in kp], des)
     elif method == 'MOPS':
@@ -86,77 +85,6 @@ def normalize_points(img, points):
     h, w = map(float, img.shape[:2])
     return np.array([np.array([r/h, c/w]) for (r, c) in points])
 
-def find_fundamental_matrix(points1, points2):
-    '''
-    Input:
-        points1: a list of (r, c) points in the first image
-        points2: a list of matching (r, c) points in the second image
-    Output:
-        F: np.matrix, the fundamental matrix of the stereo pair
-        F_err: approximation error
-        outliers: set of outlier indices
-    '''
-
-    assert len(points1) == len(points2)
-    candidates = range(len(points1))
-
-    F = None
-    F_err = float('inf')
-    ninliers = 0
-    outliers = []
-    max_iters = max(1000, 10*len(points1))
-
-    for j in xrange(max_iters):
-        rows = []
-        samples = random.sample(candidates, 8)
-        for k in samples:
-            A, B = points1[k]
-            Ap, Bp = points2[k]
-            rows.append([Ap*A, Ap*B, Ap, Bp*A, Bp*B, Bp, A, B])
-        A = np.matrix(rows)
-        b = np.matrix([[-1]] * 8)
-        x, residuals, rank, s = LA.lstsq(A, b)
-
-        # The system is under-constrained, no need to waste time evaluating it.
-        if rank < 8:
-            continue
-
-        cur_F = np.matrix(np.array(list(x) + [[1]]).reshape(3, 3))
-
-        # Estimate # of inliers, inlier error, and outliers.
-        in_error = 0.0
-        cur_ninliers = 0
-        cur_outliers = []
-        for i, (pt1, pt2) in enumerate(zip(points1, points2)):
-            a, b = pt1
-            c, d = pt2
-            e = np.matrix([c, d, 1]) * (cur_F * np.matrix([[a], [b], [1]]))
-            pt_err = e[0, 0]**2
-            if pt_err < 0.01:
-                cur_ninliers += 1
-                in_error += pt_err
-            else:
-                cur_outliers.append(i)
-
-        if ninliers < 0.5*len(points1):
-            # We don't have very many inliers.
-            # In this regime, work to increase the # of inliers.
-            if ninliers < cur_ninliers:
-                print "o",
-                F_err, ninliers, outliers = in_error, cur_ninliers, cur_outliers
-                F = cur_F
-        else:
-            # We now have at least 50% of the points as inliers.
-            # In this regime, work to just decrease the inlier error.
-            if F_err > in_error and cur_ninliers >= 0.5*len(points1):
-                print ".",
-                F_err, ninliers, outliers = in_error, cur_ninliers, cur_outliers
-                F = cur_F
-
-    print "Fundamental matrix:\n", F
-    print "-> Approximation error =", F_err, "(given", len(points1), "matches)"
-    print "-> Found", ninliers, "inliers"
-    return F, F_err, set(outliers)
  
 ######################
 ## <HELPER METHODS> ##
@@ -247,7 +175,6 @@ def matchPoints(patch1, patch2, coord1, coord2, thresh=0.4):
 ## </HELPER METHODS> ##
 #######################
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('img1')
@@ -269,7 +196,7 @@ if __name__ == '__main__':
 
     points1, points2 = map(normalize_points, (img1, img2), (points1, points2))
 
-    F, F_err, outliers = find_fundamental_matrix(points1, points2)
+    F, F_err, outliers = reconstruct.find_fundamental_matrix(points1, points2)
 
     o, op = reconstruct.find_epipoles(F)
     P1, P2 = reconstruct.approx_perspective_projections(F)
@@ -284,4 +211,4 @@ if __name__ == '__main__':
         reconstruct_err += err
     print "Total depth reconstruction error:", reconstruct_err
     print "Accepted", len(points3d), "of", len(points1), "correspondences"
-    reconstruct.render(points3d)
+    reconstruct.render_points(points3d)
